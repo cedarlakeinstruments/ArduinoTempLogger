@@ -8,20 +8,18 @@
 //
 // Arduino I/O
 // Thermistors 1-3: A0-A2
-//
+// LED 5
 // SD card
 // 10 - CS
-// 11 - DI
-// 12 - DO
-// 13 - CLK
 
 #include <SD.h>
 #include <Wire.h>
 #include <RTClib.h>
+#include <SPI.h>
 #include "Thermistor-103J-G1J.h"
 
 volatile bool _triggered = false;
-bool _logging = true;
+bool _logging = false;
 // Define the Real Time Clock
 RTC_PCF8523 _rtc;
 // SD card 
@@ -34,7 +32,7 @@ File _myFile;
 
 //*******************  Pin definitions ************************
 // LED
-#define LED 13
+#define LED 3
 // Start/stop logging
 #define START 2
 
@@ -46,14 +44,13 @@ File _myFile;
 // If blocking is true, halts here.
 void errorBlink(int code, bool blocking = false)
 {
-	pinMode(LED, OUTPUT);
 	while (blocking)
 	{
 		for (int i = 0; i < code; i++)
 		{
-			digitalWrite(LED, HIGH);
-			delay(100);
 			digitalWrite(LED, LOW);
+			delay(100);
+			digitalWrite(LED, HIGH);
 			delay(200);
 		}
 		delay(2000);
@@ -62,6 +59,7 @@ void errorBlink(int code, bool blocking = false)
 
 void setup()
 {
+	pinMode(LED, OUTPUT);
 	Serial.begin(9600);
 	if (!_rtc.begin()) 
 	{
@@ -78,17 +76,19 @@ void setup()
 		Serial.println("RTC initialized");
 	}
 
-	Serial.print("Initializing SD card...\n");
+	Serial.println("Initializing SD card...");
 	if (!SD.begin(CS))
 	{
 		Serial.println("SD card initialization failed!");
-		errorBlink(4);
+		errorBlink(5);
 	}
 
 	Serial.println("Initialization done");
 	pinMode(START, INPUT_PULLUP);
-	pinMode(LED, OUTPUT);
-	attachInterrupt(START, logIsr, RISING);
+	attachInterrupt(digitalPinToInterrupt(START), logIsr, RISING);
+
+	digitalWrite(LED, HIGH);
+	_triggered = false;
 }
 
 void loop()
@@ -109,22 +109,21 @@ void loop()
 		}
 	}
 
-	// Toggle activity LED on
-	if (_logging)
-	{
-		digitalWrite(13, HIGH);
-	}
 	float t1 = readThermistorValue(A0);
 	delay(50);
 	float t2 = readThermistorValue(A1);
 	delay(50);
 	float t3 = readThermistorValue(A2);
 
-	logData(t1 * 100, t2 * 100, t3 * 100);
-	// Activity  LED off
+	// Toggle activity LED
+	digitalWrite(LED, LOW);
 	delay(100);
-	digitalWrite(13, LOW);
-	delay(LOG_INTERVAL);
+	digitalWrite(LED, HIGH);
+	delay(200);
+
+	logData(t1 * 100, t2 * 100, t3 * 100);
+	// Account for main LED toggle time
+	delay(LOG_INTERVAL - 200);
 }
 
 // Reads the thermistor on channel
@@ -145,14 +144,6 @@ double readThermistorValue(int channel)
 		{
 			float lastTemp = pgm_read_float(&TempToOhms[i-1]);
 			temp = map(r, lastTemp, currentTemp, (float)i-1.0, (float)i) + TEMP_OFFSET;
-
-#ifdef DEBUG
-			Serial.print("T: "); Serial.println(i + TEMP_OFFSET);
-			Serial.print("Rtbl-1: "); Serial.println((int)(lastTemp));
-			Serial.print("Rtbl: "); Serial.println((int)(currentTemp));
-			Serial.print("Rcalc: "); Serial.println((int)(r));
-			Serial.print(" TC: "); Serial.println((int)(temp));
-#endif
 			break;
 		}
 	}
@@ -210,22 +201,29 @@ void logData(int v1, int v2, int v3)
 {
 	DateTime timeNow = _rtc.now();
 	char buffer[LINE_LEN];
-    snprintf(buffer, LINE_LEN, "%02d:%02d:%02d,%3d.%dC,%3d.%dC,%3d.%dC", timeNow.hour(), timeNow.minute(), timeNow.second(), v1/100,abs(v1%100),v2/100,abs(v2%100),v3/100,abs(v3%100));
+    snprintf(buffer, LINE_LEN, "%02d:%02d:%02d,%d.%d,%d.%d,%d.%d", timeNow.hour(), timeNow.minute(), timeNow.second(), v1/100,abs(v1%100),v2/100,abs(v2%100),v3/100,abs(v3%100));
 	if (_logging)
 	{
+		// Write to file
 		_myFile.println(buffer);
+		// Toggle activity LED
+		digitalWrite(LED, LOW);
+		delay(100);
+		digitalWrite(LED, HIGH);
 	}
 	Serial.println(buffer);
 }
 
 // Create log file
+// Filename follows the format of ddTHHMM.csv
+// where dd is the day of month and HH,MM are hour and minute in 24 hour format
 void startLog()
 {
 	// open the file. note that only one file can be open at a time,
 	// so you have to close this one before opening another.
 	DateTime now = _rtc.now();
 	char buffer[LINE_LEN];
-	snprintf(buffer, LINE_LEN, "%02d-%02dT%02d-%02d.txt", now.month(), now.day(), now.hour(), now.minute() );
+	snprintf(buffer, LINE_LEN, "%02dT%02d%02d.csv", now.day(), now.hour(), now.minute() );
 	Serial.print("Recording started: "); Serial.println(buffer);
 	_myFile = SD.open(buffer, FILE_WRITE);
 }
@@ -241,4 +239,11 @@ void stopLog()
 void logIsr()
 {
 	_triggered = true;
+
+	// Feedback for pressing LED
+	if (!_logging)
+	{
+		digitalWrite(LED, LOW);
+		delay(100);
+	}
 }

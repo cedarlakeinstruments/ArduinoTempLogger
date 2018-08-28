@@ -57,3 +57,16 @@ $RECYCLE.BIN/
 
 # Windows shortcuts
 *.lnk
+Firmware/TemperatureLogger/.vs/TemperatureLogger/v14/.suo
+Firmware/TemperatureLogger/__vm/.TemperatureLogger.vsarduino.h
+Firmware/TemperatureLogger/__vm/Compile.vmps.xml
+Firmware/TemperatureLogger/__vm/Configuration.Debug.vmps.xml
+Firmware/TemperatureLogger/__vm/Upload.vmps.xml
+Firmware/TemperatureLogger/Debug/board.buildinfo
+Firmware/TemperatureLogger/Debug/TemperatureLogger.elf
+Firmware/TemperatureLogger/Debug/TemperatureLogger.hex
+Firmware/TemperatureLogger/Debug/TemperatureLogger.ino.elf
+Firmware/TemperatureLogger/Debug/TemperatureLogger.ino.hex
+Firmware/TemperatureLogger/Debug/TemperatureLogger.ino.with_bootloader.hex
+Firmware/TemperatureLogger/Debug/TemperatureLogger.with_bootloader.hex
+Firmware/TemperatureLogger/TemperatureLogger.vcxproj.filters
