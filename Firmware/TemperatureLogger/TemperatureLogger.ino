@@ -30,6 +30,11 @@ File _myFile;
 // Frequency of logging in milliseconds
 #define LOG_INTERVAL 5000
 
+// 1. Uncomment to set time
+// 2. Program
+// 3. Comment line out
+// 4. Program again immediately
+//#define FORCE_TIME_SET
 //*******************  Pin definitions ************************
 // LED
 #define LED 3
@@ -66,6 +71,12 @@ void setup()
 		Serial.println("Couldn't find RTC");
 		errorBlink(2);
 	}	
+
+#ifdef FORCE_TIME_SET
+    Serial.println("Overriding RTC time");
+    _rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
+#endif
+  
 	if (!_rtc.initialized()) 
 	{
 		Serial.println("Initializing RTC\n");
